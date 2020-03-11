@@ -1,0 +1,65 @@
+pipeline {
+    agent { node { label 'Docker' } } 
+    environment{
+      TAG = "${BUILD_ID}"
+    }
+   
+    stages{
+        stage('Clone repository'){
+            steps {
+        git 'https://github.com/nagendra464/project.git'
+ 
+            }
+    }   
+
+        stage('Maven Goals'){
+            steps {
+        sh label: '', script: 'mvn clean install package'
+  
+            }
+    } 
+        stage('Build image'){
+            steps {
+        sh label: '', script: 'docker build . -t nagendra464/deployimage:${TAG}'
+  
+            }
+    }       
+        stage('push image'){
+            steps{
+        withCredentials([string(credentialsId: 'dockerpwd', variable: 'dockerpwd')])  {
+            sh label: '', script: "docker login -u nagendra464 -p ${dockerpwd}"
+    }
+        sh label: '', script: 'docker push nagendra464/deployimage:${TAG}'
+    }
+        }
+
+        stage('Revome images'){
+            steps {
+        sh label: '', script: 'docker rmi $(docker images -q) -f'
+  
+            }
+    }
+         stage('Remove containers'){
+            steps {
+        sh label: '', script: 'docker rm -f $(docker ps -aq)'
+  
+            }
+    }
+        stage('Create containers'){
+            steps {
+        sh label: '', script: 'docker run --name testlogin -d -p 80:8080 nagendra464/deployimage:${TAG}'
+  
+            }
+    }
+        
+    }
+    
+} 
+
+node('k8s')
+{
+    stage('clone the code for kops'){
+        git 'https://github.com/nagendra464/project.git'
+    }
+
+}      
